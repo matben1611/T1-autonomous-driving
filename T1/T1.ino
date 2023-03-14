@@ -53,14 +53,14 @@ void handle_toggle_front() {
 	FRONT_LED_STATUS = !FRONT_LED_STATUS;
 	Serial.print("front: ");
 	Serial.println(FRONT_LED_STATUS);
-	server.send(200, "text/html", sendHTML());
+	server.send(301, "/");
 }
 
 void handle_toggle_back() {
 	BACK_LED_STATUS = !BACK_LED_STATUS;
 	Serial.print("back: ");
 	Serial.println(BACK_LED_STATUS);
-	server.send(200, "text/html", sendHTML());
+	server.send(301, "/");
 }
 
 void handle_NotFound() { server.send(404, "text/plain", "Not found"); }
