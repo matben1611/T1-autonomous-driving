@@ -1,6 +1,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+// 301 as redirect response must not be used due to caching
+const int REDIRECT = 302;
 
 const int FRONT_LED = 13;
 const int BACK_LED = 15;
@@ -12,8 +14,8 @@ const char *ssid = "ESP32-T1";
 const char *password = "passwordd";
 
 /* Put IP Address details */
-IPAddress local_ip(192, 168, 1, 1);
-IPAddress gateway(192, 168, 1, 1);
+IPAddress local_ip(192, 168, 0, 1);
+IPAddress gateway(192, 168, 0, 1);
 IPAddress subnet(255, 255, 255, 0);
 
 WebServer server(80);
@@ -43,9 +45,7 @@ void loop() {
 }
 
 void handle_OnConnect() {
-	Serial.println("new connection, resetting...");
-	FRONT_LED_STATUS = LOW;
-	BACK_LED_STATUS = LOW;
+	Serial.println("new connection");
 	server.send(200, "text/html", sendHTML());
 }
 
@@ -53,17 +53,21 @@ void handle_toggle_front() {
 	FRONT_LED_STATUS = !FRONT_LED_STATUS;
 	Serial.print("front: ");
 	Serial.println(FRONT_LED_STATUS);
-	server.send(301, "/");
+	server.sendHeader("location", "/", true);
+	server.send(REDIRECT, "text/html", "");
 }
 
 void handle_toggle_back() {
 	BACK_LED_STATUS = !BACK_LED_STATUS;
 	Serial.print("back: ");
 	Serial.println(BACK_LED_STATUS);
-	server.send(301, "/");
+	server.sendHeader("location", "/", true);
+	server.send(REDIRECT, "text/html", "");
 }
 
-void handle_NotFound() { server.send(404, "text/plain", "Not found"); }
+void handle_NotFound() {
+	server.send(404, "text/plain", "Not found");
+}
 
 String sendHTML() {
 	  String ptr = \
