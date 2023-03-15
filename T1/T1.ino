@@ -13,7 +13,7 @@ const int BACK_LED = 15;
 bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
 
-const long DEFAULT_STEERING_ANGLE = 90; // 0 - 180: 90 is straight
+const int DEFAULT_STEERING_ANGLE = 90; // 0 - 180: 90 is straight
 const int SERVO_PIN = 14;
 Servo servo;
 
@@ -40,7 +40,7 @@ void setup() {
 	WiFi.softAPConfig(local_ip, gateway, subnet);
 	delay(100);
 
-	server.on("/", handle_OnConnect);
+	server.on("/", handle_root);
 	server.on("/togglefront", handle_toggle_front);
 	server.on("/toggleback", handle_toggle_back);
 	server.on("/steering_dir", handle_steering);
@@ -52,8 +52,9 @@ void setup() {
 
 void handle_steering() {
 	if(server.hasArg("angle")) {
-		long angle = DEFAULT_STEERING_ANGLE + server.arg("angle").toInt();
-		Serial.println("Setting angle to " + angle);
+		int angle = DEFAULT_STEERING_ANGLE + server.arg("angle").toInt();
+		Serial.print("Setting angle to ");
+		Serial.println(angle);
 		servo.write(angle);
 		server.send(200, TYPE_TEXT, String(angle));
 	} else {
@@ -67,8 +68,7 @@ void loop() {
 	digitalWrite(BACK_LED, BACK_LED_STATUS);
 }
 
-void handle_OnConnect() {
-	Serial.println("new connection");
+void handle_root() {
 	server.send(200, TYPE_HTML, sendHTML());
 }
 
