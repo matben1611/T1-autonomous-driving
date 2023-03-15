@@ -1,5 +1,9 @@
+#include <ESP32Servo.h>
 #include <WebServer.h>
 #include <WiFi.h>
+
+#define TYPE_TEXT "text/plain"
+#define TYPE_HTML "text/html"
 
 // 301 as redirect response must not be used due to caching
 const int REDIRECT = 302;
@@ -8,6 +12,10 @@ const int FRONT_LED = 13;
 const int BACK_LED = 15;
 bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
+
+const long DEFAULT_STEERING_ANGLE = 90; // 0 - 180: 90 is straight
+const int SERVO_PIN = 14;
+Servo servo;
 
 
 const char *ssid = "ESP32-T1";
@@ -24,6 +32,9 @@ void setup() {
 	Serial.begin(115200);
 	pinMode(FRONT_LED, OUTPUT);
 	pinMode(BACK_LED, OUTPUT);
+	
+	servo.attach(SERVO_PIN);
+	servo.write(DEFAULT_STEERING_ANGLE);
 
 	WiFi.softAP(ssid, password);
 	WiFi.softAPConfig(local_ip, gateway, subnet);
@@ -32,10 +43,22 @@ void setup() {
 	server.on("/", handle_OnConnect);
 	server.on("/togglefront", handle_toggle_front);
 	server.on("/toggleback", handle_toggle_back);
+	server.on("/steering_dir", handle_steering);
 	server.onNotFound(handle_NotFound);
 
 	server.begin();
 	Serial.println("HTTP server started");
+}
+
+void handle_steering() {
+	if(server.hasArg("angle")) {
+		long angle = DEFAULT_STEERING_ANGLE + server.arg("angle").toInt();
+		Serial.println("Setting angle to " + angle);
+		servo.write(angle);
+		server.send(200, TYPE_TEXT, String(angle));
+	} else {
+		server.send(400, TYPE_TEXT, "param 'angle' missing");
+	}
 }
 
 void loop() {
@@ -46,7 +69,7 @@ void loop() {
 
 void handle_OnConnect() {
 	Serial.println("new connection");
-	server.send(200, "text/html", sendHTML());
+	server.send(200, TYPE_HTML, sendHTML());
 }
 
 void handle_toggle_front() {
@@ -54,7 +77,7 @@ void handle_toggle_front() {
 	Serial.print("front: ");
 	Serial.println(FRONT_LED_STATUS);
 	server.sendHeader("location", "/", true);
-	server.send(REDIRECT, "text/html", "");
+	server.send(REDIRECT, TYPE_HTML, "");
 }
 
 void handle_toggle_back() {
@@ -62,11 +85,11 @@ void handle_toggle_back() {
 	Serial.print("back: ");
 	Serial.println(BACK_LED_STATUS);
 	server.sendHeader("location", "/", true);
-	server.send(REDIRECT, "text/html", "");
+	server.send(REDIRECT, TYPE_HTML, "");
 }
 
 void handle_NotFound() {
-	server.send(404, "text/plain", "Not found");
+	server.send(404, TYPE_TEXT, "Not found");
 }
 
 String sendHTML() {
