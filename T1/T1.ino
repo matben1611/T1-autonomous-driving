@@ -6,16 +6,24 @@
 #define TYPE_HTML "text/html"
 
 // 301 as redirect response must not be used due to caching
-const int REDIRECT = 302;
+#define REDIRECT 302
 
-const int FRONT_LED = 13;
-const int BACK_LED = 15;
+#define FRONT_LED 13
+#define BACK_LED 15
 bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
 
-const int DEFAULT_STEERING_ANGLE = 90; // 0 - 180: 90 is straight
-const int SERVO_PIN = 14;
+#define DEFAULT_STEERING_ANGLE 90 // 0 - 180: 90 is straight
+#define SERVO_PIN 14
 Servo servo;
+
+#define MOTOR_PIN_1 16
+#define MOTOR_PIN_2 17
+#define MOTOR_PIN_1_CHANNEL 1
+#define MOTOR_PIN_2_CHANNEL 2
+#define MOTOR_FREQUENCY 1000
+#define MOTOR_RESOLUTION 8
+#define MAX_PWM_VALUE ((1 << MOTOR_RESOLUTION) - 1)
 
 
 const char *ssid = "ESP32-T1";
@@ -35,6 +43,13 @@ void setup() {
 	
 	servo.attach(SERVO_PIN);
 	servo.write(DEFAULT_STEERING_ANGLE);
+	
+	ledcAttachPin(MOTOR_PIN_1, MOTOR_PIN_1_CHANNEL);
+	ledcAttachPin(MOTOR_PIN_2, MOTOR_PIN_2_CHANNEL);
+	ledcSetup(MOTOR_PIN_1_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
+	ledcSetup(MOTOR_PIN_2_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
+	ledcWrite(MOTOR_PIN_1_CHANNEL, 0);
+	ledcWrite(MOTOR_PIN_2_CHANNEL, 0);
 
 	WiFi.softAP(ssid, password);
 	WiFi.softAPConfig(local_ip, gateway, subnet);
@@ -44,16 +59,55 @@ void setup() {
 	server.on("/togglefront", handle_toggle_front);
 	server.on("/toggleback", handle_toggle_back);
 	server.on("/steering_dir", handle_steering);
+	server.on("/speed", handle_speed);
 	server.onNotFound(handle_NotFound);
 
 	server.begin();
 	Serial.println("HTTP server started");
 }
 
+int normalize(int input) {
+	// to either 1 or -1
+	if(abs(input) > MAX_PWM_VALUE) {
+		if(input >= 0) {
+			input = MAX_PWM_VALUE;
+		} else {
+			input = -MAX_PWM_VALUE;
+		}
+	}
+	return input;
+}
+
+void handle_speed() {
+	if(server.hasArg("value")) {
+		int speed = server.arg("value").toInt();
+		speed = normalize(speed);
+		Serial.print("setting speed to ");
+		Serial.println(speed);
+		
+		int forward = 0;
+		int backward = 0;
+		
+		if(speed > 0) {
+			forward = speed;
+		} else if(speed < 0) {
+			backward = abs(speed);
+		}
+		
+		ledcWrite(MOTOR_PIN_1_CHANNEL, 0);
+		ledcWrite(MOTOR_PIN_2_CHANNEL, 0);
+		
+		ledcWrite(MOTOR_PIN_1_CHANNEL, speed);
+		server.send(200, TYPE_TEXT, String(speed));
+	} else {
+		server.send(400, TYPE_TEXT, "param 'value' missing");
+	}
+}
+
 void handle_steering() {
 	if(server.hasArg("angle")) {
 		int angle = DEFAULT_STEERING_ANGLE + server.arg("angle").toInt();
-		Serial.print("Setting angle to ");
+		Serial.print("setting angle to ");
 		Serial.println(angle);
 		servo.write(angle);
 		server.send(200, TYPE_TEXT, String(angle));
