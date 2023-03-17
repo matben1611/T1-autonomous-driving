@@ -149,46 +149,7 @@ void handle_NotFound() {
 }
 
 String sendHTML() {
-	  String ptr = \
-"<!DOCTYPE html> <html>\
-<head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>\
-	<title>ESP32 T1</title>\
-	<style>\
-		html { display: inline-block; margin: 0px auto; text-align: center;}\n\
-		body {margin-top: 50px;} \
-		h1 {color: #444444;margin: 50px auto 30px;}\
-		h3 {color: #444444;margin-bottom: 50px;}\
-		.button {width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;}\
-		.button-on {background-color: #3498db;}\
-		.button-on:active {background-color: #2980b9;}\
-		.button-off {background-color: #34495e;}\
-		.button-off:active {background-color: #2c3e50;}\
-		div {margin: 40px;}\
-	</style>\
-	<script>function getRequest(to, target){let req = new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;} }</script>\
-</head>\
-<body>\
-	<h1>ESP32 T1 control</h1>\
-	<h3>AP Mode</h3>\
-	<div>\
-		<span class='button' onclick='getRequest(\"/togglefront\", \"lights-front\")'>front</span>\
-		<span id='lights-front'>false</span>\
-	</div>\
-	<div>\
-		<span class='button' onclick='getRequest(\"/toggleback\", \"lights-back\")'>back</span>\
-		<span id='lights-back'>false</span>\
-	<div>\
-	<div><p id='steer'>90</p>\
-		<span class='button' onclick='getRequest(\"/steering?angle=-90\", \"steer\")'>left</span>\
-		<span class='button' onclick='getRequest(\"/steering?angle=0\", \"steer\")'>straight</span>\
-		<span class='button' onclick='getRequest(\"/steering?angle=90\", \"steer\")'>right</span>\
-	</div>\
-	<div><p id='speed'>0</p>\
-		<span class='button' onclick='getRequest(\"/motor?speed=255\", \"speed\")'>forward</span>\
-		<span class='button' onclick='getRequest(\"/motor?speed=0\", \"speed\")'>stop</span>\
-		<span class='button' onclick='getRequest(\"/motor?speed=-255\", \"speed\")'>backward</span>\
-	</div>\
-</body>\n</html>\n";
+	String ptr = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'><title>ESP32 T1</title><style>html{margin:0px auto; text-align:center;background-color:#000;color:#FFF}.button{min-width:40px; background-color:#000; border:#FF4500 solid 1px; border-radius:4px; padding:13px 30px; font-size:25px; cursor:pointer; transition:background-color 0.2s, color 0.2s;}.button:hover{background-color:#FF4500; color:#000;}.flex{display:flex; flex-wrap:nowrap; gap:10px; justify-content:center;}.grid{display:grid; row-gap:40px; margin-top:20px;}p{margin:0px;}span,p{font-size:30px;}h2{margin-top:60px; margin-bottom:0px;}</style><script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script></head><body><h1>ESP32 T1 control</h1><h2>Lights</h2><div class='grid'><div><span class='button' onclick='getRequest("/togglefront","lights-front")'>front</span><span id='lights-front'>false</span></div><div><span class='button' onclick='getRequest("/toggleback","lights-back")'>back</span><span id='lights-back'>false</span></div></div><h2>Steering</h1><div><p id='steer'>90</p><div class='flex'><span class='button' onclick='getRequest("/steering?angle=-90","steer")'>left</span><span class='button' onclick='getRequest("/steering?angle=0","steer")'>straight</span><span class='button' onclick='getRequest("/steering?angle=90","steer")'>right</span></div></div><h2>Motor</h2><div><p id='speed'>0</p><div class='flex'><span class='button' onclick='getRequest("/motor?speed=255","speed")'>forward</span><span class='button' onclick='getRequest("/motor?speed=0","speed")'>stop</span><span class='button' onclick='getRequest("/motor?speed=-255","speed")'>backward</span></div></div></body></html>";
 
 	return ptr;
 }
