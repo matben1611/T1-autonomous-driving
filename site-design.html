@@ -19,9 +19,9 @@
 	<h1>ESP32 T1 control</h1>
 	<h2>Lights</h2>
 	<div class='centered grid small-grid'>
-		<div><span class='button' onclick='getRequest("/togglefront","lights-front")'>front</span></div>
+		<div><span class='button' onclick='getRequest("/lights?where=front","lights-front")'>front</span></div>
 		<span id='lights-front'>false</span>
-		<div><span class='button' onclick='getRequest("/toggleback","lights-back")'>back</span></div>
+		<div><span class='button' onclick='getRequest("/lights?where=back","lights-back")'>back</span></div>
 		<span id='lights-back'>false</span>
 	</div>
 	<h2>Steering</h1>
