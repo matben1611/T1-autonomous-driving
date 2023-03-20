@@ -92,23 +92,12 @@ bool is_relative() {
 }
 
 int normalizeMotorPWM(int input) {
-	if(abs(input) > MAX_MOTOR_PWM) {
-		if(input > 0) {
-			input = MAX_MOTOR_PWM;
-		} else {
-			input = -MAX_MOTOR_PWM;
-		}
-	}
+	input = constrain(input, -MAX_MOTOR_PWM, MAX_MOTOR_PWM);
 	return input;
 }
 
 int normalizeSteeringAngle(int input) {
-	if(input < MIN_STEERING_ANGLE) {
-		input = MIN_STEERING_ANGLE;
-	}
-	if(input > MAX_STEERING_ANGLE) {
-		input = MAX_STEERING_ANGLE;
-	}
+	input = constrain(input, MIN_STEERING_ANGLE, MAX_STEERING_ANGLE);
 	return input;
 }
 
