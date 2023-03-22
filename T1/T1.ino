@@ -15,8 +15,8 @@ bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
 
 #define DEFAULT_STEERING_ANGLE 90 // 0 - 180: 90 is straight
-#define MIN_STEERING_ANGLE 0
-#define MAX_STEERING_ANGLE 180
+#define STEERING_OFFSET 90
+#define MAX_STEERING_ANGLE 30
 #define SERVO_PIN 32
 Servo servo;
 int angle = DEFAULT_STEERING_ANGLE;
@@ -97,7 +97,7 @@ int normalizeMotorPWM(int input) {
 }
 
 int normalizeSteeringAngle(int input) {
-	input = constrain(input, MIN_STEERING_ANGLE, MAX_STEERING_ANGLE);
+	input = constrain(input, -MAX_STEERING_ANGLE + STEERING_OFFSET, MAX_STEERING_ANGLE + STEERING_OFFSET);
 	return input;
 }
 
