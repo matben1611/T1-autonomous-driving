@@ -9,6 +9,13 @@
 #define TYPE_TEXT "text/plain"
 #define TYPE_HTML "text/html"
 
+#define TRIGGER 18
+#define ECHO 19
+#define BUZZER 14
+
+#define MIN_DELAY 20
+#define MAX_DELAY 500
+
 #define FRONT_LED 13
 #define BACK_LED 15
 bool FRONT_LED_STATUS = LOW;
@@ -49,6 +56,9 @@ void setup() {
 	Serial.begin(115200);
 	pinMode(FRONT_LED, OUTPUT);
 	pinMode(BACK_LED, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
+  pinMode(ECHO, INPUT);
+  pinMode(TRIGGER, OUTPUT);
 	
 	servo.attach(SERVO_PIN);
 	servo.write(DEFAULT_STEERING_ANGLE);
@@ -77,6 +87,30 @@ void loop() {
 	server.handleClient();
 	digitalWrite(FRONT_LED, FRONT_LED_STATUS);
 	digitalWrite(BACK_LED, BACK_LED_STATUS);
+
+  handle_buzzer();
+}
+
+void handle_buzzer() {
+  int delay_time = MAX_DELAY;
+  digitalWrite(TRIGGER, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIGGER, LOW);
+  
+  int distance_cm = pulseIn(ECHO, HIGH) * 0.017;
+
+  if(distance_cm > 40) {
+    digitalWrite(BUZZER, LOW);
+  } else if(distance_cm < 5) {
+    digitalWrite(BUZZER, HIGH);
+  } else {
+    delay_time = map(distance_cm, 5, 40, MIN_DELAY, MAX_DELAY);
+    digitalWrite(BUZZER, HIGH);
+    delay(delay_time);
+    digitalWrite(BUZZER, LOW);
+  }
+  
+  delay(delay_time);
 }
 
 void handle_root() {
