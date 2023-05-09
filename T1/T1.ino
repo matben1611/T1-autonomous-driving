@@ -1,6 +1,11 @@
 #include <ESP32Servo.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <TM1637Display.h>
+
+#define CLK 25
+#define DIO 26
+TM1637Display display = TM1637Display(CLK, DIO);
 
 #define HTTP_OKAY 200
 #define HTTP_USER_ERROR 400
@@ -41,7 +46,6 @@ int speed = 0;
 #define SPEED_ARG "speed"
 #define STEERING_ARG "angle"
 
-
 const char *ssid = "ESP32-T1";
 const char *password = "passwordd";
 
@@ -72,7 +76,6 @@ void setup() {
 
 	WiFi.softAP(ssid, password);
 	WiFi.softAPConfig(local_ip, gateway, subnet);
-
 	server.on("/", handle_root);
 	server.on("/lights", handle_lights);
 	server.on("/steering", handle_steering);
@@ -81,7 +84,11 @@ void setup() {
 
 	server.begin();
 	Serial.println("HTTP server started");
+
+  display.setBrightness(7);
+
 }
+
 
 void loop() {
 	server.handleClient();
@@ -89,6 +96,11 @@ void loop() {
 	digitalWrite(BACK_LED, BACK_LED_STATUS);
 
   handle_buzzer();
+  update_display();
+}
+
+void update_display() {
+ display.showNumberDec(speed);
 }
 
 void handle_buzzer() {
