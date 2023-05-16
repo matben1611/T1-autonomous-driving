@@ -105,8 +105,8 @@ TM1637Display display = TM1637Display(CLK, DIO);
 #define TYPE_TEXT "text/plain"
 #define TYPE_HTML "text/html"
 
-#define TRIGGER 18
-#define ECHO 19
+#define TRIGGER 22
+#define ECHO 23
 #define BUZZER 14
 
 #define MIN_DELAY 20
@@ -137,10 +137,37 @@ int speed = 0;
 #define SPEED_ARG "speed"
 #define STEERING_ARG "angle"
 
+#define PASSIVE_BUZZER_PIN 12
+
+#define RGB_RED 21
+#define RGB_GREEN 19
+#define RGB_BLUE 18
+#define RGB_RESOLUTION 8
+#define RGB_FREQUENCY 100
+
+#define RGB_RED_CHANNEL 0
+#define RGB_BLUE_CHANNEL 1
+#define RGB_GREEN_CHANNEL 2
+
+enum RGB_STATE {
+  INCREASE_RED,
+  DECREASE_GREEN,
+  INCREASE_BLUE,
+  DECREASE_RED,
+  INCREASE_GREEN,
+  DECREASE_BLUE,
+};
+
+int rgb_state = 0;
+int r = 0;
+int g = 255;
+int b = 0;
+
+#define RGB_MIN 0
+#define RGB_MAX 255
+
 const char *ssid = "ESP32-T1";
 const char *password = "passwordd";
-
-#define PASSIVE_BUZZER_PIN 12
 
 /* Put IP Address details */
 IPAddress local_ip(192, 168, 0, 1);
@@ -193,6 +220,18 @@ void setup() {
 	ledcWrite(MOTOR_PIN_1_CHANNEL, 0);
 	ledcWrite(MOTOR_PIN_2_CHANNEL, 0);
 
+  ledcSetup(RGB_RED_CHANNEL, RGB_FREQUENCY, RGB_RESOLUTION);
+  ledcSetup(RGB_GREEN_CHANNEL, RGB_FREQUENCY, RGB_RESOLUTION);
+  ledcSetup(RGB_BLUE_CHANNEL, RGB_FREQUENCY, RGB_RESOLUTION);
+
+  ledcAttachPin(RGB_RED, RGB_RED_CHANNEL);
+  ledcAttachPin(RGB_GREEN, RGB_GREEN_CHANNEL);
+  ledcAttachPin(RGB_BLUE, RGB_BLUE_CHANNEL);
+
+  ledcWrite(RGB_RED_CHANNEL, r);
+  ledcWrite(RGB_GREEN_CHANNEL, g);
+  ledcWrite(RGB_BLUE_CHANNEL, b);
+
 	WiFi.softAP(ssid, password);
 	WiFi.softAPConfig(local_ip, gateway, subnet);
 	server.on("/", handle_root);
@@ -217,6 +256,7 @@ void loop() {
 
   handle_buzzer();
   update_display();
+  update_rgb_led();
 }
 
 void sw_sound() {
@@ -243,6 +283,46 @@ void sw_sound() {
     noTone(PASSIVE_BUZZER_PIN);
   }
 
+}
+
+void update_rgb_led() {
+  RGB_STATE st = static_cast<RGB_STATE>(rgb_state);
+  switch(st) {
+    case INCREASE_RED:
+      r += 5;
+      if(r == RGB_MAX)
+        rgb_state += 1;
+      break;
+    case DECREASE_GREEN:
+      g -= 5;
+      if(g == RGB_MIN)
+        rgb_state += 1;
+      break;
+    case INCREASE_BLUE:
+      b += 5;
+      if(b == RGB_MAX)
+        rgb_state +=1;
+      break;
+    case DECREASE_RED:
+      r -= 5;
+      if(r == RGB_MIN)
+        rgb_state += 1;
+      break;
+    case INCREASE_GREEN:
+      g += 5;
+      if(g == RGB_MAX)
+        rgb_state +=1;
+      break;
+    case DECREASE_BLUE:
+      b += 5;
+      if(b == RGB_MIN)
+        rgb_state = 0;
+      break;
+  }
+
+  ledcWrite(RGB_RED_CHANNEL, r);
+  ledcWrite(RGB_GREEN_CHANNEL, g);
+  ledcWrite(RGB_BLUE_CHANNEL, b);
 }
 
 void update_display() {
