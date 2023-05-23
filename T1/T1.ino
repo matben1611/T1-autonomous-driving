@@ -145,9 +145,9 @@ int speed = 0;
 #define RGB_RESOLUTION 8
 #define RGB_FREQUENCY 100
 
-#define RGB_RED_CHANNEL 0
-#define RGB_BLUE_CHANNEL 1
-#define RGB_GREEN_CHANNEL 2
+#define RGB_RED_CHANNEL 11
+#define RGB_BLUE_CHANNEL 12
+#define RGB_GREEN_CHANNEL 13
 
 enum RGB_STATE {
   INCREASE_RED,
@@ -165,6 +165,7 @@ int b = 0;
 
 #define RGB_MIN 0
 #define RGB_MAX 255
+#define RGB_OFFSET 37
 
 const char *ssid = "ESP32-T1";
 const char *password = "passwordd";
@@ -289,34 +290,46 @@ void update_rgb_led() {
   RGB_STATE st = static_cast<RGB_STATE>(rgb_state);
   switch(st) {
     case INCREASE_RED:
-      r += 5;
-      if(r == RGB_MAX)
+      r += RGB_OFFSET;
+      if(r >= RGB_MAX) {
         rgb_state += 1;
+        r = RGB_MAX;
+      }      
       break;
     case DECREASE_GREEN:
-      g -= 5;
-      if(g == RGB_MIN)
+      g -= RGB_OFFSET;
+      if(g <= RGB_MIN) {
         rgb_state += 1;
+        r = RGB_MIN;
+      }
       break;
     case INCREASE_BLUE:
-      b += 5;
-      if(b == RGB_MAX)
-        rgb_state +=1;
+      b += RGB_OFFSET;
+      if(b >= RGB_MAX) {
+        rgb_state += 1;
+        b = RGB_MAX;
+      }      
       break;
     case DECREASE_RED:
-      r -= 5;
-      if(r == RGB_MIN)
+      r -= RGB_OFFSET;
+      if(r <= RGB_MIN) {
         rgb_state += 1;
+        r = RGB_MIN;
+      }
       break;
     case INCREASE_GREEN:
-      g += 5;
-      if(g == RGB_MAX)
-        rgb_state +=1;
+      g += RGB_OFFSET;
+      if(g >= RGB_MAX) {
+        rgb_state += 1;
+        g = RGB_MAX;
+      }      
       break;
     case DECREASE_BLUE:
-      b += 5;
-      if(b == RGB_MIN)
+      b -= RGB_OFFSET;
+      if(b <= RGB_MIN) {
         rgb_state = 0;
+        b = RGB_MIN;
+      }
       break;
   }
 
