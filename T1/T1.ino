@@ -300,7 +300,7 @@ void update_rgb_led() {
       g -= RGB_OFFSET;
       if(g <= RGB_MIN) {
         rgb_state += 1;
-        r = RGB_MIN;
+        g = RGB_MIN;
       }
       break;
     case INCREASE_BLUE:
