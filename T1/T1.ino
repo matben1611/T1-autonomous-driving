@@ -1,7 +1,7 @@
 #include <ESP32Servo.h>
 #include <WebServer.h>
 #include <WiFi.h>
-#include <TM1637Display.h>
+// #include <TM1637Display.h>
 
 #define NOTE_B0  31
 #define NOTE_C1  33
@@ -94,9 +94,9 @@
 #define NOTE_DS8 4978
 #define REST      0
 
-#define CLK 25
-#define DIO 26
-TM1637Display display = TM1637Display(CLK, DIO);
+// #define CLK 25
+// #define DIO 26
+// TM1637Display display = TM1637Display(CLK, DIO);
 
 #define HTTP_OKAY 200
 #define HTTP_USER_ERROR 400
@@ -105,14 +105,16 @@ TM1637Display display = TM1637Display(CLK, DIO);
 #define TYPE_TEXT "text/plain"
 #define TYPE_HTML "text/html"
 
-#define TRIGGER 22
-#define ECHO 23
-#define BUZZER 14
+#define RIGHT_TRIGGER 25
+#define RIGHT_ECHO 34
+#define LEFT_TRIGGER 26
+#define LEFT_ECHO 35
+bool AUTODRIVE = false;
 
 #define MIN_DELAY 20
 #define MAX_DELAY 500
 
-#define FRONT_LED 13
+#define FRONT_LED 12
 #define BACK_LED 15
 bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
@@ -120,7 +122,7 @@ bool BACK_LED_STATUS = LOW;
 #define DEFAULT_STEERING_ANGLE 90 // 0 - 180: 90 is straight
 #define STEERING_OFFSET 90
 #define MAX_STEERING_ANGLE 30
-#define SERVO_PIN 32
+#define SERVO_PIN 14
 Servo servo;
 int angle = DEFAULT_STEERING_ANGLE;
 
@@ -137,7 +139,7 @@ int speed = 0;
 #define SPEED_ARG "speed"
 #define STEERING_ARG "angle"
 
-#define PASSIVE_BUZZER_PIN 12
+#define PASSIVE_BUZZER_PIN 13
 
 #define RGB_RED 21
 #define RGB_GREEN 19
@@ -204,12 +206,13 @@ int wholenote = (60000 * 4) / tempo;
 int divider = 0, noteDuration = 0;
 
 void setup() {
-	Serial.begin(115200);
 	pinMode(FRONT_LED, OUTPUT);
 	pinMode(BACK_LED, OUTPUT);
-  pinMode(BUZZER, OUTPUT);
-  pinMode(ECHO, INPUT);
-  pinMode(TRIGGER, OUTPUT);
+
+  pinMode(RIGHT_ECHO, INPUT);
+  pinMode(RIGHT_TRIGGER, OUTPUT);
+  pinMode(LEFT_ECHO, INPUT);
+  pinMode(LEFT_TRIGGER, OUTPUT);
 	
 	servo.attach(SERVO_PIN);
 	servo.write(DEFAULT_STEERING_ANGLE);
@@ -239,14 +242,14 @@ void setup() {
 	server.on("/lights", handle_lights);
 	server.on("/steering", handle_steering);
 	server.on("/motor", handle_speed);
+  server.on("/toggle_autodrive", handle_autodrive);
 	server.onNotFound(send_not_found);
 
   sw_sound();
 
 	server.begin();
-	Serial.println("HTTP server started");
 
-  display.setBrightness(7);
+  // display.setBrightness(7);
 }
 
 
@@ -255,8 +258,7 @@ void loop() {
 	digitalWrite(FRONT_LED, FRONT_LED_STATUS);
 	digitalWrite(BACK_LED, BACK_LED_STATUS);
 
-  handle_buzzer();
-  update_display();
+  // update_display();
   update_rgb_led();
 }
 
@@ -338,31 +340,9 @@ void update_rgb_led() {
   ledcWrite(RGB_BLUE_CHANNEL, b);
 }
 
-void update_display() {
- display.showNumberDec(speed);
-}
-
-void handle_buzzer() {
-  int delay_time = MAX_DELAY;
-  digitalWrite(TRIGGER, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(TRIGGER, LOW);
-  
-  int distance_cm = pulseIn(ECHO, HIGH) * 0.017;
-
-  if(distance_cm > 40) {
-    digitalWrite(BUZZER, LOW);
-  } else if(distance_cm < 5) {
-    digitalWrite(BUZZER, HIGH);
-  } else {
-    delay_time = map(distance_cm, 5, 40, MIN_DELAY, MAX_DELAY);
-    digitalWrite(BUZZER, HIGH);
-    delay(delay_time);
-    digitalWrite(BUZZER, LOW);
-  }
-  
-  delay(delay_time);
-}
+// void update_display() {
+//   display.showNumberDec(speed);
+// }
 
 void handle_root() {
 	server.send(HTTP_OKAY, TYPE_HTML, sendHTML());
@@ -393,9 +373,6 @@ void handle_speed() {
 	}
 	
 	set_speed(server.arg(SPEED_ARG).toInt(), is_relative());
-	
-	Serial.print("setting speed to ");
-	Serial.println(speed);
 	
 	server.send(HTTP_OKAY, TYPE_TEXT, String(speed));
 }
@@ -441,8 +418,6 @@ void set_angle(int value, bool relative) {
 	}
 	
 	angle = normalizeSteeringAngle(angle);
-	Serial.print("setting angle to ");
-	Serial.println(angle);
 	servo.write(angle);
 }
 
@@ -464,16 +439,17 @@ void handle_lights() {
 
 void change_front_led() {
 	FRONT_LED_STATUS = !FRONT_LED_STATUS;
-	Serial.print("front: ");
-	Serial.println(printBool(FRONT_LED_STATUS));
 	server.send(HTTP_OKAY, TYPE_TEXT, printBool(FRONT_LED_STATUS));
 }
 
 void change_back_led() {
 	BACK_LED_STATUS = !BACK_LED_STATUS;
-	Serial.print("back: ");
-	Serial.println(printBool(BACK_LED_STATUS));
 	server.send(HTTP_OKAY, TYPE_TEXT, printBool(BACK_LED_STATUS));
+}
+
+void handle_autodrive() {
+  AUTODRIVE = !AUTODRIVE;
+  server.send(HTTP_OKAY, TYPE_TEXT, printBool(AUTODRIVE));
 }
 
 void arg_missing(String arg) {
