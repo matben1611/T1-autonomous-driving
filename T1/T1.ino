@@ -120,6 +120,7 @@ bool FRONT_LED_STATUS = LOW;
 bool BACK_LED_STATUS = LOW;
 
 #define DEFAULT_STEERING_ANGLE 90 // 0 - 180: 90 is straight
+#define STEERING_DEFAULT_OFFSET -10
 #define STEERING_OFFSET 90
 #define MAX_STEERING_ANGLE 30
 #define SERVO_PIN 14
@@ -167,7 +168,10 @@ int b = 0;
 
 #define RGB_MIN 0
 #define RGB_MAX 255
-#define RGB_OFFSET 37
+#define RGB_OFFSET 20
+
+#define RGB_DELAY_MS 50
+unsigned long last_update = 0;
 
 const char *ssid = "ESP32-T1";
 const char *password = "passwordd";
@@ -215,7 +219,7 @@ void setup() {
   pinMode(LEFT_TRIGGER, OUTPUT);
 	
 	servo.attach(SERVO_PIN);
-	servo.write(DEFAULT_STEERING_ANGLE);
+	set_angle(0, false);
 	
 	ledcAttachPin(MOTOR_PIN_1, MOTOR_PIN_1_CHANNEL);
 	ledcAttachPin(MOTOR_PIN_2, MOTOR_PIN_2_CHANNEL);
@@ -263,7 +267,6 @@ void loop() {
 }
 
 void sw_sound() {
-
   for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
     // calculates the duration of each note
     divider = melody[thisNote + 1];
@@ -285,10 +288,16 @@ void sw_sound() {
     // stop the waveform generation before the next note.
     noTone(PASSIVE_BUZZER_PIN);
   }
-
 }
 
 void update_rgb_led() {
+  unsigned long current_time = millis();
+  if(last_update + RGB_DELAY_MS > current_time) {
+    return;
+  }
+
+  last_update = current_time;
+
   RGB_STATE st = static_cast<RGB_STATE>(rgb_state);
   switch(st) {
     case INCREASE_RED:
@@ -363,6 +372,8 @@ int normalizeMotorPWM(int input) {
 
 int normalizeSteeringAngle(int input) {
 	input = constrain(input, -MAX_STEERING_ANGLE + STEERING_OFFSET, MAX_STEERING_ANGLE + STEERING_OFFSET);
+
+  input += STEERING_DEFAULT_OFFSET;
 	return input;
 }
 
@@ -417,8 +428,8 @@ void set_angle(int value, bool relative) {
 		angle = DEFAULT_STEERING_ANGLE + value;
 	}
 	
-	angle = normalizeSteeringAngle(angle);
-	servo.write(angle);
+  angle = normalizeSteeringAngle(angle);
+	servo.write(angle + STEERING_DEFAULT_OFFSET);
 }
 
 void handle_lights() {
@@ -461,5 +472,5 @@ void send_not_found() {
 }
 
 String sendHTML() {
-	return "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'><title>ESP32 T1</title><style>html{margin:0px auto; text-align:center;background-color:#000;color:#FFF}.button{min-width:40px; background-color:#000; border:#FF4500 solid 1px; border-radius:4px; padding:13px 30px; font-size:25px; cursor:pointer; transition:background-color 0.2s,color 0.2s;}.button:hover{background-color:#FF4500; color:#000;}.grid{display:grid; row-gap:40px;}.wide-grid{grid-template-columns:auto auto auto; max-width:450px;}.small-grid{grid-template-columns:auto auto; max-width:300px;}.centered{margin:auto; margin-top:20px;}p{margin:0px;}span,p{font-size:30px;}h2{margin-top:60px; margin-bottom:0px;}</style><script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script></head><body><h1>ESP32 T1 control</h1><h2>Lights</h2><div class='centered grid small-grid'><div><span class='button' onclick='getRequest(\"/lights?where=front\",\"lights-front\")'>front</span></div><span id='lights-front'>false</span><div><span class='button' onclick='getRequest(\"/lights?where=back\",\"lights-back\")'>back</span></div><span id='lights-back'>false</span></div><h2>Steering</h1><div><p id='steer'>90</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/steering?angle=30\",\"steer\")'>left</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=0\",\"steer\")'>straight</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=-30\",\"steer\")'>right</span></div></div></div><h2>Motor</h2><div><p id='speed'>0</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/motor?speed=255\",\"speed\")'>forward</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=0\",\"speed\")'>stop</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=-255\",\"speed\")'>backward</span></div></div></div><h2>Autodrive</h2><div><p id=\"autodrive\">false</p><div class='centered'><div><span class='button' onclick='getRequest(\"/toggle_autodrive\", \"autodrive\")'>toggle autodrive</span></div><div></div></body></html>";
+	return "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'><title>ESP32 T1</title><style>html{margin:0px auto; text-align:center;background-color:#000;color:#FFF}.button{min-width:40px; background-color:#000; border:#FF4500 solid 1px; border-radius:4px; padding:13px 30px; font-size:25px; cursor:pointer; transition:background-color 0.2s,color 0.2s;}.button:hover{background-color:#FF4500; color:#000;}.grid{display:grid; row-gap:40px;}.wide-grid{grid-template-columns:auto auto auto; max-width:450px;}.small-grid{grid-template-columns:auto auto; max-width:300px;}.centered{margin:auto; margin-top:20px;}p{margin:0px;}span,p{font-size:30px;}h2{margin-top:60px; margin-bottom:0px;}</style><script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script></head><body><h1>ESP32 T1 control</h1><h2>Lights</h2><div class='centered grid small-grid'><div><span class='button' onclick='getRequest(\"/lights?where=front\",\"lights-front\")'>front</span></div><span id='lights-front'>false</span><div><span class='button' onclick='getRequest(\"/lights?where=back\",\"lights-back\")'>back</span></div><span id='lights-back'>false</span></div><h2>Steering</h1><div><p id='steer'>90</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/steering?angle=30\",\"steer\")'>left</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=0\",\"steer\")'>straight</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=-30\",\"steer\")'>right</span></div></div></div><h2>Motor</h2><div><p id='speed'>0</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/motor?speed=100\",\"speed\")'>forward</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=0\",\"speed\")'>stop</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=-100\",\"speed\")'>backward</span></div></div></div></body></html>";
 }
