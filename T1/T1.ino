@@ -92,14 +92,10 @@
 #define NOTE_CS8 4435
 #define NOTE_D8  4699
 #define NOTE_DS8 4978
-#define REST      0
-
-// #define CLK 25
-// #define DIO 26
-// TM1637Display display = TM1637Display(CLK, DIO);
+#define REST     0
 
 #define HTTP_OKAY 200
-#define HTTP_USER_ERROR 400
+#define HTTP_BAD_REQUEST 400
 #define HTTP_NOT_FOUND 404
 
 #define TYPE_TEXT "text/plain"
@@ -109,17 +105,19 @@
 #define RIGHT_ECHO 34
 #define LEFT_TRIGGER 26
 #define LEFT_ECHO 35
-bool AUTODRIVE = false;
-#define DISTANCE_THRESHOLD 30
-#define DISTANCE_MINIMUM 5
+bool autodrive_enabled = false;
+bool autodrive_led_updated = false;
+#define AUTODRIVE_DISTANCE_THRESHOLD 60
+#define AUTODRIVE_DISTANCE_MINIMUM 10
+#define AUTODRIVE_DIFFERENCE_THRESHHOLD 10
 
 #define MIN_DELAY 20
 #define MAX_DELAY 500
 
 #define FRONT_LED 12
 #define BACK_LED 15
-bool FRONT_LED_STATUS = LOW;
-bool BACK_LED_STATUS = LOW;
+bool front_led_status = LOW;
+bool back_led_status = LOW;
 
 #define DEFAULT_STEERING_ANGLE 90 // 0 - 180: 90 is straight
 #define STEERING_DEFAULT_OFFSET -10
@@ -129,10 +127,10 @@ bool BACK_LED_STATUS = LOW;
 Servo servo;
 int angle = DEFAULT_STEERING_ANGLE;
 
-#define MOTOR_PIN_1 16
-#define MOTOR_PIN_2 17
-#define MOTOR_PIN_1_CHANNEL 14
-#define MOTOR_PIN_2_CHANNEL 15
+#define MOTOR_FORWARD_PIN 16
+#define MOTOR_BACKWARD_PIN 17
+#define MOTOR_FORWARD_CHANNEL 14
+#define MOTOR_BACKWARD_CHANNEL 15
 #define MOTOR_FREQUENCY 50
 #define MOTOR_RESOLUTION 8
 #define MAX_MOTOR_PWM ((1 << MOTOR_RESOLUTION) - 1)
@@ -163,7 +161,7 @@ enum RGB_STATE {
   DECREASE_BLUE,
 };
 
-int rgb_state = 0;
+int rgb_state = INCREASE_RED;
 int r = 0;
 int g = 255;
 int b = 0;
@@ -223,12 +221,12 @@ void setup() {
 	servo.attach(SERVO_PIN);
 	set_angle(0, false);
 	
-	ledcAttachPin(MOTOR_PIN_1, MOTOR_PIN_1_CHANNEL);
-	ledcAttachPin(MOTOR_PIN_2, MOTOR_PIN_2_CHANNEL);
-	ledcSetup(MOTOR_PIN_1_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
-	ledcSetup(MOTOR_PIN_2_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
-	ledcWrite(MOTOR_PIN_1_CHANNEL, 0);
-	ledcWrite(MOTOR_PIN_2_CHANNEL, 0);
+	ledcAttachPin(MOTOR_FORWARD_PIN, MOTOR_FORWARD_CHANNEL);
+	ledcAttachPin(MOTOR_BACKWARD_PIN, MOTOR_BACKWARD_CHANNEL);
+	ledcSetup(MOTOR_FORWARD_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
+	ledcSetup(MOTOR_BACKWARD_CHANNEL, MOTOR_FREQUENCY, MOTOR_RESOLUTION);
+	ledcWrite(MOTOR_FORWARD_CHANNEL, 0);
+	ledcWrite(MOTOR_BACKWARD_CHANNEL, 0);
 
   ledcSetup(RGB_RED_CHANNEL, RGB_FREQUENCY, RGB_RESOLUTION);
   ledcSetup(RGB_GREEN_CHANNEL, RGB_FREQUENCY, RGB_RESOLUTION);
@@ -259,39 +257,44 @@ void setup() {
 
 void loop() {
 	server.handleClient();
-	digitalWrite(FRONT_LED, FRONT_LED_STATUS);
-	digitalWrite(BACK_LED, BACK_LED_STATUS);
+	digitalWrite(FRONT_LED, front_led_status);
+	digitalWrite(BACK_LED, back_led_status);
 
   update_rgb_led();
 
-  if(AUTODRIVE){
+  if(autodrive_enabled){
     update_autodrive();
   }
 
 }
 
 void sw_sound() {
-  for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
-    // calculates the duration of each note
-    divider = melody[thisNote + 1];
-    if (divider > 0) {
-      // regular note, just proceed
-      noteDuration = (wholenote) / divider;
-    } else if (divider < 0) {
-      // dotted notes are represented with negative durations!!
-      noteDuration = (wholenote) / abs(divider);
-      noteDuration *= 1.5; // increases the duration in half for dotted notes
-    }
+  // for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
+  //   // calculates the duration of each note
+  //   divider = melody[thisNote + 1];
+  //   if (divider > 0) {
+  //     // regular note, just proceed
+  //     noteDuration = (wholenote) / divider;
+  //   } else if (divider < 0) {
+  //     // dotted notes are represented with negative durations!!
+  //     noteDuration = (wholenote) / abs(divider);
+  //     noteDuration *= 1.5; // increases the duration in half for dotted notes
+  //   }
 
-    // we only play the note for 90% of the duration, leaving 10% as a pause
-    tone(PASSIVE_BUZZER_PIN, melody[thisNote], noteDuration*0.9);
+  //   // we only play the note for 90% of the duration, leaving 10% as a pause
+  //   tone(PASSIVE_BUZZER_PIN, melody[thisNote], noteDuration*0.9);
 
-    // Wait for the specief duration before playing the next note.
-    delay(noteDuration);
+  //   // Wait for the specief duration before playing the next note.
+  //   delay(noteDuration);
     
-    // stop the waveform generation before the next note.
-    noTone(PASSIVE_BUZZER_PIN);
-  }
+  //   // stop the waveform generation before the next note.
+  //   noTone(PASSIVE_BUZZER_PIN);
+  // }
+
+  tone(PASSIVE_BUZZER_PIN, NOTE_GS2);
+  delay(200);
+  noTone(PASSIVE_BUZZER_PIN);
+
 }
 
 double getDistance(int trigger, int echo) {
@@ -306,27 +309,50 @@ void update_autodrive() {
   double distanceLeft = getDistance(LEFT_TRIGGER, LEFT_ECHO);
   double distanceRight = getDistance(RIGHT_TRIGGER, RIGHT_ECHO);
 
-  if(distanceLeft > DISTANCE_THRESHOLD && distanceRight > DISTANCE_THRESHOLD){
+  // quickly changing distances causes a lot of problems
+  if(abs(distanceLeft - distanceRight) < AUTODRIVE_DIFFERENCE_THRESHHOLD) {
+    if(distanceLeft < distanceRight) {
+      distanceRight = AUTODRIVE_DISTANCE_THRESHOLD + 1;
+    } else {
+      distanceLeft = AUTODRIVE_DISTANCE_THRESHOLD + 1;
+    }
+  }
+
+  if(distanceLeft > AUTODRIVE_DISTANCE_THRESHOLD && distanceRight > AUTODRIVE_DISTANCE_THRESHOLD){
     set_angle(0, false);
     return;
   }
-  if(distanceLeft < DISTANCE_MINIMUM && distanceRight < DISTANCE_MINIMUM){
+  if(distanceLeft < AUTODRIVE_DISTANCE_MINIMUM && distanceRight < AUTODRIVE_DISTANCE_MINIMUM){
     set_angle(0, false);
     set_speed(0, false);
     return;
   }
-  if(distanceLeft < DISTANCE_THRESHOLD){
-    set_angle(map(distanceLeft, DISTANCE_THRESHOLD, DISTANCE_MINIMUM, 0, -30), false);
+  if(distanceLeft < AUTODRIVE_DISTANCE_THRESHOLD){
+    set_angle(map(distanceLeft, AUTODRIVE_DISTANCE_THRESHOLD, AUTODRIVE_DISTANCE_MINIMUM, 0, -30), false);
     return;
   }
-  if(distanceRight < DISTANCE_THRESHOLD){
-    set_angle(map(distanceRight, DISTANCE_THRESHOLD, DISTANCE_MINIMUM, 0, 30), false);
+  if(distanceRight < AUTODRIVE_DISTANCE_THRESHOLD){
+    set_angle(map(distanceRight, AUTODRIVE_DISTANCE_THRESHOLD, AUTODRIVE_DISTANCE_MINIMUM, 0, 30), false);
     return;
   }
 
 }
 
 void update_rgb_led() {
+  if(autodrive_enabled) {
+    if(!autodrive_led_updated) {
+      ledcWrite(RGB_RED_CHANNEL, 128);
+      ledcWrite(RGB_GREEN_CHANNEL, 128);
+      ledcWrite(RGB_BLUE_CHANNEL, 128);
+
+      autodrive_led_updated = true;
+    }
+
+    return;
+  }
+
+  autodrive_led_updated = false;
+
   unsigned long current_time = millis();
   if(last_update + RGB_DELAY_MS > current_time) {
     return;
@@ -405,7 +431,6 @@ int normalizeMotorPWM(int input) {
 int normalizeSteeringAngle(int input) {
 	input = constrain(input, -MAX_STEERING_ANGLE + STEERING_OFFSET, MAX_STEERING_ANGLE + STEERING_OFFSET);
 
-  input += STEERING_DEFAULT_OFFSET;
 	return input;
 }
 
@@ -438,11 +463,16 @@ void set_speed(int value, bool relative) {
 		backward = abs(speed);
 	}
 	
-	ledcWrite(MOTOR_PIN_1_CHANNEL, forward);
-	ledcWrite(MOTOR_PIN_2_CHANNEL, backward);
+	ledcWrite(MOTOR_FORWARD_CHANNEL, forward);
+	ledcWrite(MOTOR_BACKWARD_CHANNEL, backward);
 }
 
 void handle_steering() {
+  if(autodrive_enabled) {
+    server.send(HTTP_BAD_REQUEST, TYPE_TEXT, String(angle));
+    return;
+  }
+
 	if(!server.hasArg(STEERING_ARG)) {
 		arg_missing(STEERING_ARG);
 		return;
@@ -481,18 +511,18 @@ void handle_lights() {
 }
 
 void change_front_led() {
-	FRONT_LED_STATUS = !FRONT_LED_STATUS;
-	server.send(HTTP_OKAY, TYPE_TEXT, printBool(FRONT_LED_STATUS));
+	front_led_status = !front_led_status;
+	server.send(HTTP_OKAY, TYPE_TEXT, printBool(front_led_status));
 }
 
 void change_back_led() {
-	BACK_LED_STATUS = !BACK_LED_STATUS;
-	server.send(HTTP_OKAY, TYPE_TEXT, printBool(BACK_LED_STATUS));
+	back_led_status = !back_led_status;
+	server.send(HTTP_OKAY, TYPE_TEXT, printBool(back_led_status));
 }
 
 void handle_autodrive() {
-  AUTODRIVE = !AUTODRIVE;
-  server.send(HTTP_OKAY, TYPE_TEXT, printBool(AUTODRIVE));
+  autodrive_enabled = !autodrive_enabled;
+  server.send(HTTP_OKAY, TYPE_TEXT, printBool(autodrive_enabled));
 }
 
 void arg_missing(String arg) {
@@ -504,5 +534,5 @@ void send_not_found() {
 }
 
 String sendHTML() {
-	return "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'><title>ESP32 T1</title><style>html{margin:0px auto; text-align:center;background-color:#000;color:#FFF}.button{min-width:40px; background-color:#000; border:#FF4500 solid 1px; border-radius:4px; padding:13px 30px; font-size:25px; cursor:pointer; transition:background-color 0.2s,color 0.2s;}.button:hover{background-color:#FF4500; color:#000;}.grid{display:grid; row-gap:40px;}.wide-grid{grid-template-columns:auto auto auto; max-width:450px;}.small-grid{grid-template-columns:auto auto; max-width:300px;}.centered{margin:auto; margin-top:20px;}p{margin:0px;}span,p{font-size:30px;}h2{margin-top:60px; margin-bottom:0px;}</style><script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script></head><body><h1>ESP32 T1 control</h1><h2>Lights</h2><div class='centered grid small-grid'><div><span class='button' onclick='getRequest(\"/lights?where=front\",\"lights-front\")'>front</span></div><span id='lights-front'>false</span><div><span class='button' onclick='getRequest(\"/lights?where=back\",\"lights-back\")'>back</span></div><span id='lights-back'>false</span></div><h2>Steering</h1><div><p id='steer'>90</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/steering?angle=30\",\"steer\")'>left</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=0\",\"steer\")'>straight</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=-30\",\"steer\")'>right</span></div></div></div><h2>Motor</h2><div><p id='speed'>0</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/motor?speed=255\",\"speed\")'>forward</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=0\",\"speed\")'>stop</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=-255\",\"speed\")'>backward</span></div></div></div><h2>Autodrive</h2><div><p id=\"autodrive\">false</p><div class='centered'><div><span class='button' onclick='getRequest(\"/toggle_autodrive\", \"autodrive\")'>toggle autodrive</span></div><div></div></body></html>";
+	return "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'><title>ESP32 T1</title><style>html{margin:0px auto; text-align:center;background-color:#000;color:#FFF}.button{min-width:40px; background-color:#000; border:#FF4500 solid 1px; border-radius:4px; padding:13px 30px; font-size:25px; cursor:pointer; transition:background-color 0.2s,color 0.2s;}.button:hover{background-color:#FF4500; color:#000;}.grid{display:grid; row-gap:40px;}.wide-grid{grid-template-columns:auto auto auto; max-width:450px;}.small-grid{grid-template-columns:auto auto; max-width:300px;}.centered{margin:auto; margin-top:20px;}p{margin:0px;}span,p{font-size:30px;}h2{margin-top:60px; margin-bottom:0px;}</style><script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script></head><body><h1>ESP32 T1 control</h1><h2>Lights</h2><div class='centered grid small-grid'><div><span class='button' onclick='getRequest(\"/lights?where=front\",\"lights-front\")'>front</span></div><span id='lights-front'>false</span><div><span class='button' onclick='getRequest(\"/lights?where=back\",\"lights-back\")'>back</span></div><span id='lights-back'>false</span></div><h2>Steering</h1><div><p id='steer'>90</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/steering?angle=30\",\"steer\")'>left</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=0\",\"steer\")'>straight</span></div><div><span class='button' onclick='getRequest(\"/steering?angle=-30\",\"steer\")'>right</span></div></div></div><h2>Motor</h2><div><p id='speed'>0</p><div class='centered grid wide-grid'><div><span class='button' onclick='getRequest(\"/motor?speed=100\",\"speed\")'>forward</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=0\",\"speed\")'>stop</span></div><div><span class='button' onclick='getRequest(\"/motor?speed=-100\",\"speed\")'>backward</span></div></div></div><h2>Autodrive</h2><div><p id=\"autodrive\">false</p><div class='centered'><div><span class='button' onclick='getRequest(\"/toggle_autodrive\", \"autodrive\")'>toggle autodrive</span></div><div></div></body></html>";
 }
