@@ -110,6 +110,8 @@
 #define LEFT_TRIGGER 26
 #define LEFT_ECHO 35
 bool AUTODRIVE = false;
+#define DISTANCE_THRESHOLD 30
+#define DISTANCE_MINIMUM 5
 
 #define MIN_DELAY 20
 #define MAX_DELAY 500
@@ -252,8 +254,6 @@ void setup() {
   sw_sound();
 
 	server.begin();
-
-  // display.setBrightness(7);
 }
 
 
@@ -262,8 +262,12 @@ void loop() {
 	digitalWrite(FRONT_LED, FRONT_LED_STATUS);
 	digitalWrite(BACK_LED, BACK_LED_STATUS);
 
-  // update_display();
   update_rgb_led();
+
+  if(AUTODRIVE){
+    update_autodrive();
+  }
+
 }
 
 void sw_sound() {
@@ -288,6 +292,38 @@ void sw_sound() {
     // stop the waveform generation before the next note.
     noTone(PASSIVE_BUZZER_PIN);
   }
+}
+
+double getDistance(int trigger, int echo) {
+  digitalWrite(trigger, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigger, LOW);
+  unsigned long distance = pulseIn(echo);
+  return distance * 0.017;
+}
+
+void update_autodrive() {
+  double distanceLeft = getDistance(LEFT_TRIGGER, LEFT_ECHO);
+  double distanceRight = getDistance(RIGHT_TRIGGER, RIGHT_ECHO);
+
+  if(distanceLeft > DISTANCE_THRESHOLD && distanceRight > DISTANCE_THRESHOLD){
+    set_angle(0, false);
+    return;
+  }
+  if(distanceLeft < DISTANCE_MINIMUM && distanceRight < DISTANCE_MINIMUM){
+    set_angle(0, false);
+    set_speed(0, false);
+    return;
+  }
+  if(distanceLeft < DISTANCE_THRESHOLD){
+    set_angle(map(distanceLeft, DISTANCE_THRESHOLD, DISTANCE_MINIMUM, 0, -30), false);
+    return;
+  }
+  if(distanceRight < DISTANCE_THRESHOLD){
+    set_angle(map(distanceRight, DISTANCE_THRESHOLD, DISTANCE_MINIMUM, 0, 30), false);
+    return;
+  }
+
 }
 
 void update_rgb_led() {
@@ -348,10 +384,6 @@ void update_rgb_led() {
   ledcWrite(RGB_GREEN_CHANNEL, g);
   ledcWrite(RGB_BLUE_CHANNEL, b);
 }
-
-// void update_display() {
-//   display.showNumberDec(speed);
-// }
 
 void handle_root() {
 	server.send(HTTP_OKAY, TYPE_HTML, sendHTML());
