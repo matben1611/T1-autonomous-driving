@@ -15,7 +15,16 @@
 		span,p{font-size:30px;}
 		h2{margin-top:60px; margin-bottom:0px;}
 	</style>
-	<script>function getRequest(to,target){let req=new XMLHttpRequest();req.open('GET',to,false);req.send(null);if(target!=null){document.getElementById(target).innerHTML=req.responseText;}}</script>
+	<script>
+		function getRequest(to,target) {
+			let req=new XMLHttpRequest();
+			req.open('GET',to,false);
+			req.send(null);
+			if(target!=null) {
+				 document.getElementById(target).innerHTML=req.responseText;
+			}
+		}
+	</script>
 </head>
 <body>
 	<h1>ESP32 T1 control</h1>
