@@ -269,31 +269,31 @@ void loop() {
 }
 
 void sw_sound() {
-  // for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
-  //   // calculates the duration of each note
-  //   divider = melody[thisNote + 1];
-  //   if (divider > 0) {
-  //     // regular note, just proceed
-  //     noteDuration = (wholenote) / divider;
-  //   } else if (divider < 0) {
-  //     // dotted notes are represented with negative durations!!
-  //     noteDuration = (wholenote) / abs(divider);
-  //     noteDuration *= 1.5; // increases the duration in half for dotted notes
-  //   }
+  for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
+    // calculates the duration of each note
+    divider = melody[thisNote + 1];
+    if (divider > 0) {
+      // regular note, just proceed
+      noteDuration = (wholenote) / divider;
+    } else if (divider < 0) {
+      // dotted notes are represented with negative durations!!
+      noteDuration = (wholenote) / abs(divider);
+      noteDuration *= 1.5; // increases the duration in half for dotted notes
+    }
 
-  //   // we only play the note for 90% of the duration, leaving 10% as a pause
-  //   tone(PASSIVE_BUZZER_PIN, melody[thisNote], noteDuration*0.9);
+    // we only play the note for 90% of the duration, leaving 10% as a pause
+    tone(PASSIVE_BUZZER_PIN, melody[thisNote], noteDuration*0.9);
 
-  //   // Wait for the specief duration before playing the next note.
-  //   delay(noteDuration);
+    // Wait for the specief duration before playing the next note.
+    delay(noteDuration);
     
-  //   // stop the waveform generation before the next note.
-  //   noTone(PASSIVE_BUZZER_PIN);
-  // }
+    // stop the waveform generation before the next note.
+    noTone(PASSIVE_BUZZER_PIN);
+  }
 
-  tone(PASSIVE_BUZZER_PIN, NOTE_GS2);
-  delay(200);
-  noTone(PASSIVE_BUZZER_PIN);
+  // tone(PASSIVE_BUZZER_PIN, NOTE_GS2);
+  // delay(200);
+  // noTone(PASSIVE_BUZZER_PIN);
 
 }
 
@@ -307,31 +307,27 @@ double getDistance(int trigger, int echo) {
 
 void update_autodrive() {
   double distanceLeft = getDistance(LEFT_TRIGGER, LEFT_ECHO);
+  delay(200);
   double distanceRight = getDistance(RIGHT_TRIGGER, RIGHT_ECHO);
 
   // quickly changing distances causes a lot of problems
   if(abs(distanceLeft - distanceRight) < AUTODRIVE_DIFFERENCE_THRESHHOLD) {
-    if(distanceLeft < distanceRight) {
-      distanceRight = AUTODRIVE_DISTANCE_THRESHOLD + 1;
-    } else {
-      distanceLeft = AUTODRIVE_DISTANCE_THRESHOLD + 1;
-    }
+    distanceRight = AUTODRIVE_DISTANCE_THRESHOLD + 1;
   }
 
-  if(distanceLeft > AUTODRIVE_DISTANCE_THRESHOLD && distanceRight > AUTODRIVE_DISTANCE_THRESHOLD){
+  if(distanceLeft > AUTODRIVE_DISTANCE_THRESHOLD && distanceRight > AUTODRIVE_DISTANCE_THRESHOLD) {
     set_angle(0, false);
     return;
   }
-  if(distanceLeft < AUTODRIVE_DISTANCE_MINIMUM && distanceRight < AUTODRIVE_DISTANCE_MINIMUM){
+  if(distanceLeft < AUTODRIVE_DISTANCE_MINIMUM && distanceRight < AUTODRIVE_DISTANCE_MINIMUM) {
     set_angle(0, false);
     set_speed(0, false);
     return;
   }
-  if(distanceLeft < AUTODRIVE_DISTANCE_THRESHOLD){
+  if(distanceLeft < AUTODRIVE_DISTANCE_THRESHOLD) {
     set_angle(map(distanceLeft, AUTODRIVE_DISTANCE_THRESHOLD, AUTODRIVE_DISTANCE_MINIMUM, 0, -30), false);
     return;
-  }
-  if(distanceRight < AUTODRIVE_DISTANCE_THRESHOLD){
+  } else if(distanceRight < AUTODRIVE_DISTANCE_THRESHOLD) {
     set_angle(map(distanceRight, AUTODRIVE_DISTANCE_THRESHOLD, AUTODRIVE_DISTANCE_MINIMUM, 0, 30), false);
     return;
   }
